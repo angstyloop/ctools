@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <assert.h>
 
@@ -15,22 +16,24 @@ const char* fext(const char*restrict fname) {
 
 #ifdef TEST_FEXT
 int main() {
-    char* str1[] = "./foo.bar";
-    char* str2[] = "./baz";
-    assert(!strcmp("bar", fext(str1)))
-    assert(!fext(str2))
+    char str1[] = "./foo.bar";
+    char str2[] = "./baz";
+    assert(!strcmp("bar", fext(str1)));
+    assert(!fext(str2));
+    printf("%s\n", fext(str2));
     return 0;
 }
 #endif
 
 int isjar(const char*restrict fname) {
-    return !strcmp(fext(fname), "jar");
+    const char* ext = fext(fname);
+    return ext ? !strcmp(ext, "jar") : 0;
 }
 
 #ifdef TEST_ISJAR
 int main() {
-    char* str1[] = "./foo.jar";
-    char* str2[] = "./jazz";
+    char str1[] = "./foo.jar";
+    char str2[] = "./jazz";
     assert(isjar(str1));
     assert(!isjar(str2));
     return 0;
@@ -40,7 +43,7 @@ int main() {
 int isdir(const char*restrict path) {
     struct stat statbuf;
     if (stat(path, &statbuf)) return 0;
-    return S_ISDIR((int)path);
+    return S_ISDIR(statbuf.st_mode);
 }
 
 /* assumes test.d is an existing directory */
@@ -57,14 +60,22 @@ void whichJarHelper(char*restrict class, char*restrict dname) {
     if (!d) return;
     struct dirent* de;
     while ((de = readdir(d))) {
-        if (isjar(de->d_name)) printf("%s", de->d_name);
-        if (isdir(de->d_name)) whichJarHelper(class, de->d_name);
+        if (de->d_name[0] == '.') {
+            continue;
+        };
+        if (isjar(de->d_name)) {
+            printf("%s\n", de->d_name);
+        }
+        if (isdir(de->d_name)) {
+            chdir(de->d_name);
+            whichJarHelper(class, ".");
+            chdir("..");
+        }
     }
     closedir(d);
 }
 
 
-/* assumes test.d is an existing directory, and the current directory is ~/ctools */
 #ifdef TEST_WHICH_JAR_HELPER
 int main() {
     whichJarHelper("foo", ".");
@@ -73,12 +84,12 @@ int main() {
 
 // if no directory is provided, use the current one 
 void whichJar(char*restrict className, char*restrict dname) {
-    return whichJarHelper(className, dname && strlen(dname) ? dname : ".");
+    whichJarHelper(className, dname && strlen(dname) ? dname : ".");
 }
 
 #ifdef TEST_WHICH_JAR
 int main() {
-    whichJarHelper("foo", NULL);
+    whichJar("foo", NULL);
     //whichJarHelper("foo", 0);
     //whichJarHelper("foo", ".");
 }
