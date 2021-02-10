@@ -1,4 +1,4 @@
-#include <errno.h>
+// POSIX-inspired sorta portable line getter
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -7,88 +7,71 @@
 #define restrict
 #endif
 
-#ifndef _POSIX_SOURCE
-typedef long ssize_t;
-#define SSIZE_MAX LONG_MAX
-#endif
+#define BUFSIZE_DELTA 128
+#define BUFSIZE_MIN 4
+#define BUFSIZE_MAX = LONG_MAX
 
-ssize_t getdelim(char**restrict lineptr, size_t*restrict n, int delimiter, FILE*restrict stream);
-ssize_t getline(char**restrict lineptr, size_t*restrict n, FILE*restrict stream);
+// lineptr = the line buffer. the caller is responsible for freeing this, but the bright side is it can just be NULL initialized.
+// n = the recommended initial size for the line buffer. this should be at most the length of the buffer, unless the buffer is NULL.
+long getDelim(char**restrict lineptr, size_t*restrict n, int delimiter, FILE*restrict stream){
+    if (lineptr == NULL || n == NULL || stream == NULL) return -1;
 
-#define _GETDELIM_GROWBY 128
-#define _GETDELIM_MINLEN 4
+    char* buf = *lineptr;
 
-ssize_t getdelim(char**restrict lineptr, size_t*restrict n, int delimiter, FILE*restrict stream){
-    char* buf;
-    char* pos;
-    int c;
-    ssize_t bytes;
-    if (lineptr == NULL || n == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-    if (stream == NULL) {
-        errno = EBADF;
-        return -1;
-    }
-    buf = *lineptr;
-    if (buf == NULL || *n < _GETDELIM_MINLEN) {
-        if ((buf = realloc(*lineptr,  _GETDELIM_GROWBY)) == NULL) {
-            /* ENOMEM */
-            return -1;
-        }
-        *n = _GETDELIM_GROWBY;
+    if (buf == NULL || *n < BUFSIZE_MIN) {
+        if ((buf = realloc(*lineptr, BUFSIZE_DELTA)) == NULL) return -1;
+
+        *n = BUFSIZE_DELTA;
         *lineptr = buf;
     }
-    bytes = 0;
-    pos = buf;
+
+    long bytes = 0;
+    char* pos = buf;
+    int c;
+
     while ((c = getc(stream)) != EOF) {
-        if (++bytes >= SSIZE_MAX) {
-            errno = EOVERFLOW;
-            return -1;
-        }
+        if (++bytes >= LONG_MAX) return -1;
+
         if (bytes >= *n - 1) {
-            buf = realloc(*lineptr, *n + _GETDELIM_GROWBY);
-            if (buf == NULL) {
-                /* ENOMEM */
-                return -1;
-            }
-            *n += _GETDELIM_GROWBY;
+            if ((buf = realloc(*lineptr, *n + BUFSIZE_DELTA)) == NULL) return -1;
+
+            *n += BUFSIZE_DELTA;
             pos = buf + bytes - 1;
             *lineptr = buf;
         }
+
         *pos++ = (char) c;
-        if (c == delimiter) {
-            break;
-        }
+
+        if (c == delimiter) break;
     }
-    if (ferror(stream) || (feof(stream) && (bytes == 0))) {
-            /* EOF, or getc() error */
-            return -1;
-    }
+
+    if (ferror(stream) || (feof(stream) && (bytes == 0))) return -1;
+
     *pos = '\0';
+
     return bytes;
 }
 
-ssize_t getline(char**restrict lineptr, size_t*restrict n, FILE*restrict stream) {
-    return getdelim(lineptr, n, '\n', stream);
+long getLine(char**restrict lineptr, size_t*restrict n, FILE*restrict stream) {
+    return getDelim(lineptr, n, '\n', stream);
 }
 
-#ifdef _TEST_GETDELIM_STDIN
+#ifdef TEST_GET_LINE_STDIN
 int main() {
     char* line = NULL;
     size_t n = 0;
-    while (getline(&line, &n, stdin) > 0) {
+    while (getLine(&line, &n, stdin) > 0) {
         printf("%s", line);
     }
+    free(line);
     return 0;
 }
-#elif _TEST_GETDELIM_FILE
+#elif TEST_GET_LINE_FILE
 int main() {
     char* line = NULL;
     size_t n = 0;
     FILE* fileptr = fopen("foo.txt", "r");
-    while (getline(&line, &n, fileptr) > 0) {
+    while (getLine(&line, &n, fileptr) > 0) {
         printf("%s", line);
     }
     return 0;
