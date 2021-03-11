@@ -7,7 +7,7 @@
 
 int main ()
 {
-  char * source = "___ abc123def ___ ghi456 ___";
+  char * source = "___ abc123def ___ ghi456 ____ abcd123efg456";
   char * regexString = "[a-z]*([0-9]+)([a-z]*)";
   size_t maxMatches = 2;
   size_t maxGroups = 3;
@@ -25,7 +25,7 @@ int main ()
 
   m = 0;
   cursor = source;
-  for (m = 0; m < maxMatches; m ++)
+  for (m = 0; m < maxMatches; ++m)
     {
       if (regexec(&regexCompiled, cursor, maxGroups, groupArray, 0))
         break;  // No more matches

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -46,10 +47,10 @@ int isdir(const char*restrict path) {
     return S_ISDIR(statbuf.st_mode);
 }
 
-/* assumes test.d is an existing directory */
+/* assumes TestDir is an existing directory */
 #ifdef TEST_ISDIR
 int main() {
-    assert(isdir("test.d"));
+    assert(isdir("TestDir"));
     return 0;
 }
 #endif
@@ -64,7 +65,19 @@ void whichJarHelper(char*restrict class, char*restrict dname) {
             continue;
         };
         if (isjar(de->d_name)) {
-            printf("%s\n", de->d_name);
+            int size = snprintf(NULL, 0, "jar tf %s", de->d_name); 
+            char* cmd = malloc(size+1);
+            snprintf(cmd, size+1, "jar tf %s", de->d_name);
+
+            FILE* f = popen(cmd, "r");
+
+            // write a function that reads f line by line and extracts class names
+            // that aren't inner classes
+            //
+            //....
+            //  OR write one that takes the name of a .jar file and does the popen too
+
+            pclose(f);
         }
         if (isdir(de->d_name)) {
             chdir(de->d_name);

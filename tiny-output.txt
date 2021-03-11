@@ -1,0 +1,3 @@
+com/amazonaws/auth/AwsChunkedEncodingInputStream.class
+com/amazonaws/auth/DecodedStreamBuffer.class
+com/amazonaws/auth/ChunkContentIterator.class

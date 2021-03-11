@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-char* extractImport(char* source) {
-    char* regex = "^[ \\t]*import[ \\t]*.*[ .]([a-zA-Z0-9_]+) *;[ \\t]*";
+char* extractClass(const char*restrict source) {
+    char* regex = "([^/ \t]+)\\.class[ \t]*\n?$";
     regmatch_t groups[2];
     regex_t regexCompiled;
     if (regcomp(&regexCompiled, regex, REG_EXTENDED)) return NULL;
@@ -21,40 +21,44 @@ char* extractImport(char* source) {
     }
 }
 
-#ifdef TEST_EXTRACT_IMPORT_CMDLINE
+#ifdef TEST_EXTRACT_CLASS_CMDLINE
 int main(int argc, char* argv[]) {
     if (argc != 2) return -1;
 
-    char* import = extractImport(argv[1]);
+    char* class = extractClass(argv[1]);
 
-    if (import) {
-        printf("%s\n", import);
-        free(import);
+    if (class) {
+        printf("%s\n", class);
+        free(class);
     }
 
     return 0;
 }
 #endif
 
-void extractImports(char* fname) {
+void extractClasses(const char*restrict jarPath) {
+    int size = snprintf(NULL, 0, "jar tf %s", jarPath);
+    char* cmd = calloc(size+1, sizeof(char));
+    snprintf(cmd, size+1, "jar tf %s", jarPath);
+    puts(cmd);
+    FILE* f = popen(cmd, "r");
     char* line = NULL;
     size_t n = 0;
-    FILE* fp = fopen(fname, "r");
-    while (getline(&line, &n, fp)!=-1) {
-        char* import = extractImport(line);
-        if (import) {
-            printf("%s\n", import);
-            free(import);
+    while (getline(&line, &n, f)!=-1) {
+        char* class = extractClass(line);
+        if (class) {
+            printf("%s\n", class);
+            free(class);
         }
     }
-    fclose(fp);
+    pclose(f);
 }
 
-#ifdef TEST_EXTRACT_IMPORTS_CMDLINE
+#ifdef TEST_EXTRACT_CLASSES_CMDLINE
 int main(int argc, char* argv[]) {
     if (argc != 2) return -1;
-    
-    extractImports(argv[1]);
+
+    extractClasses(argv[1]);
 
     return 0;
 }
